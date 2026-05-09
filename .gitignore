@@ -1,0 +1,21 @@
+# Credentials
+CPANEL_API_TOKEN.txt
+*.env
+*.key
+*.pem
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Large media / archives
+*.mp4
+*.mov
+*.avi
+*.zip
+*.rar
+*.7z
+
+# Word/Office temp files
+~$*
