@@ -10,20 +10,20 @@ This is a monorepo of vanilla HTML/CSS/JS projects for the Terran Resources grou
 
 | Directory | Live URL | Repo |
 |-----------|----------|------|
-| `Terran Group ERP/` | `erp.terranresources.com` | `brandonr2630/meridian-erp` |
+| `meridian-erp/` | `erp.terranresources.com` | `brandonr2630/meridian-erp` |
 | `q2-machines-job-cards/` | `q2m.io/jobs` | `brandonr2630/q2-machines-job-cards` |
-| `Q2M WEBSITE/` | `q2m.io` | `brandonr2630/q2m-website` |
-| `COC Website/` | `toddsroadcoctt` (GreenGeeks) | `brandonr2630/coc-website` |
-| `Terran Resources Website/` | `terranresources.com` | `brandonr2630/terran-resources-website` (no deploy workflow yet) |
-| `MyWebPages/` | — | not wired |
+| `q2m-website/` | `q2m.io` | `brandonr2630/q2m-website` |
+| `coc-website/` | `toddsroadcoctt` (GreenGeeks) | `brandonr2630/coc-website` |
+| `terran-resources-website/` | `terranresources.com` | `brandonr2630/terran-resources-website` (no deploy workflow yet) |
+| `my-web-pages/` | — | not wired |
 
 ## Deployment
 
-Every push to `master` auto-deploys via GitHub Actions → cPanel Git Version Control API (`POST https://chi203.greengeeks.net:2083/execute/VersionControl/update`). The `CPANEL_API_TOKEN` secret is stored in each repo. `terran-resources-website` has no workflow yet.
+Every push to `master` auto-deploys via GitHub Actions → cPanel Fileman API (GreenGeeks). Required secrets per repo: `CPANEL_API_TOKEN`, `CPANEL_HOST`, `CPANEL_USER`. `terran-resources-website` has no workflow yet.
 
-To trigger a manual redeploy: push any commit to `master` on the relevant repo.
+To trigger a manual redeploy: go to Actions → Deploy to cPanel → Run workflow.
 
-## Meridian ERP (`Terran Group ERP/index.html`)
+## Meridian ERP (`meridian-erp/index.html`)
 
 **The entire app is one file — `index.html` (≈8400 lines of inline CSS + JS). Never edit `index2–5.html`; those are archives.**
 
@@ -71,7 +71,7 @@ Login · Dashboard · Job form (Labour, Equipment, Materials, Consumables, Sub-c
 
 ## Static websites
 
-- **Q2M WEBSITE** — equipment depot listings pulled from `listings.json`; `depot.html` is a separate page.
-- **COC Website** — single-page church site; contact form backend TBD.
-- **Terran Resources Website** — early scaffold; contact form and deploy not yet wired.
-- **MyWebPages** — offline Bible reader; translations stored as large JSON files per version (kjv, asv, lsv, etc.).
+- **q2m-website** — equipment depot listings pulled from `listings.json`; `depot.html` is a separate page.
+- **coc-website** — single-page church site; contact form backend TBD.
+- **terran-resources-website** — early scaffold; contact form and deploy not yet wired.
+- **my-web-pages** — offline Bible reader; translations stored as large JSON files per version (kjv, asv, lsv, etc.).
