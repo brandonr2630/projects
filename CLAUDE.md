@@ -15,7 +15,6 @@ This is a monorepo of vanilla HTML/CSS/JS projects for the Terran Resources grou
 | `q2m-website/` | `q2m.io` | `brandonr2630/q2m-website` |
 | `coc-website/` | `toddsroadcoctt` (GreenGeeks) | `brandonr2630/coc-website` |
 | `terran-resources-website/` | `terranresources.com` | `brandonr2630/terran-resources-website` (no deploy workflow yet) |
-| `my-web-pages/` | — | not wired |
 
 ## Deployment
 
@@ -74,4 +73,3 @@ Login · Dashboard · Job form (Labour, Equipment, Materials, Consumables, Sub-c
 - **q2m-website** — equipment depot listings pulled from `listings.json`; `depot.html` is a separate page.
 - **coc-website** — single-page church site; contact form backend TBD.
 - **terran-resources-website** — early scaffold; contact form and deploy not yet wired.
-- **my-web-pages** — offline Bible reader; translations stored as large JSON files per version (kjv, asv, lsv, etc.).
