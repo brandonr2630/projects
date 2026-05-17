@@ -42,7 +42,7 @@ jobs:
             FILES=$(git diff --name-only --diff-filter=ACM "$BEFORE" "$AFTER")
           fi
 
-          EXCLUDE="^\.github/|^\.cpanel\.yml$|^handoff\.md$"
+          EXCLUDE="^\.github/|^\.cpanel\.yml$|^handoff\.md$|^CLAUDE\.md$"
           if [ -n "${{ inputs.exclude_extra }}" ]; then
             EXCLUDE="${EXCLUDE}|${{ inputs.exclude_extra }}"
           fi
