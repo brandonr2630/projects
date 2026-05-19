@@ -81,10 +81,8 @@ jobs:
           done <<< "$FILES"
 
           # Upload files:
-          # - Binary files: delete first (upload_files cannot overwrite), then multipart upload.
-          #   delete_files requires a home-relative path (strip /home/user prefix).
+          # - Binary files: multipart upload with overwrite=1 (allows replacing existing files)
           # - Text files: save_file_content (can create and overwrite; safe for HTML/CSS/JS)
-          HOME_PREFIX="/home/$CPANEL_USER"
           FAILED=0
           while IFS= read -r file; do
             [ -z "$file" ] && continue
@@ -101,16 +99,11 @@ jobs:
             echo "→ Uploading: $file"
 
             if file --mime "$file" | grep -q "charset=binary"; then
-              # Home-relative path for delete_files API
-              HOME_REL="${REMOTE_DIR#$HOME_PREFIX}/$FNAME"
-              curl -s -X POST "$HOST/execute/Fileman/delete_files" \
-                -H "Authorization: cpanel $CPANEL_USER:$TOKEN" \
-                --data-urlencode "files-0-path=$HOME_REL" \
-                --data-urlencode "files-0-type=file" > /dev/null 2>&1 || true
               STATUS=$(curl -s -o result.json -w "%{http_code}" -X POST \
                 "$HOST/execute/Fileman/upload_files" \
                 -H "Authorization: cpanel $CPANEL_USER:$TOKEN" \
                 -F "dir=$REMOTE_DIR" \
+                -F "overwrite=1" \
                 -F "file-1=@$file")
               CPANEL_STATUS=$(jq -r 'if (.status == 1) and ((.data.failed // []) | length == 0) then "1" else "0" end' result.json 2>/dev/null || echo "0")
             else
