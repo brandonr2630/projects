@@ -80,9 +80,9 @@ jobs:
             done
           done <<< "$FILES"
 
-          # Upload all files via delete-first + multipart upload.
-          # save_file_content is text-only and cannot create new files — upload_files
-          # works for both binary and text, and creates files that don't yet exist.
+          # Upload files:
+          # - Binary files: delete first (upload_files cannot overwrite), then multipart upload
+          # - Text files: save_file_content (can create and overwrite; safe for HTML/CSS/JS)
           FAILED=0
           while IFS= read -r file; do
             [ -z "$file" ] && continue
@@ -98,18 +98,26 @@ jobs:
 
             echo "→ Uploading: $file"
 
-            # Delete existing file first (upload_files cannot overwrite)
-            curl -s -X POST "$HOST/execute/Fileman/delete_files" \
-              -H "Authorization: cpanel $CPANEL_USER:$TOKEN" \
-              --data-urlencode "files-0-path=$REMOTE_DIR/$FNAME" \
-              --data-urlencode "files-0-type=file" > /dev/null 2>&1 || true
-
-            STATUS=$(curl -s -o result.json -w "%{http_code}" -X POST \
-              "$HOST/execute/Fileman/upload_files" \
-              -H "Authorization: cpanel $CPANEL_USER:$TOKEN" \
-              -F "dir=$REMOTE_DIR" \
-              -F "file-1=@$file")
-            CPANEL_STATUS=$(jq -r 'if (.status == 1) and ((.data.failed // []) | length == 0) then "1" else "0" end' result.json 2>/dev/null || echo "0")
+            if file --mime "$file" | grep -q "charset=binary"; then
+              curl -s -X POST "$HOST/execute/Fileman/delete_files" \
+                -H "Authorization: cpanel $CPANEL_USER:$TOKEN" \
+                --data-urlencode "files-0-path=$REMOTE_DIR/$FNAME" \
+                --data-urlencode "files-0-type=file" > /dev/null 2>&1 || true
+              STATUS=$(curl -s -o result.json -w "%{http_code}" -X POST \
+                "$HOST/execute/Fileman/upload_files" \
+                -H "Authorization: cpanel $CPANEL_USER:$TOKEN" \
+                -F "dir=$REMOTE_DIR" \
+                -F "file-1=@$file")
+              CPANEL_STATUS=$(jq -r 'if (.status == 1) and ((.data.failed // []) | length == 0) then "1" else "0" end' result.json 2>/dev/null || echo "0")
+            else
+              STATUS=$(curl -s -o result.json -w "%{http_code}" -X POST \
+                "$HOST/execute/Fileman/save_file_content" \
+                -H "Authorization: cpanel $CPANEL_USER:$TOKEN" \
+                --data-urlencode "dir=$REMOTE_DIR" \
+                --data-urlencode "file=$FNAME" \
+                --data-urlencode "content@$file")
+              CPANEL_STATUS=$(python3 -c "import sys,json; d=json.load(open('result.json')); print(d.get('status',0))" 2>/dev/null || echo "0")
+            fi
 
             if [ "$STATUS" != "200" ] || [ "$CPANEL_STATUS" != "1" ]; then
               echo "  ✖ FAILED (HTTP $STATUS, cPanel status $CPANEL_STATUS)"
