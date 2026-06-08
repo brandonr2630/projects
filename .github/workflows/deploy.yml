@@ -80,8 +80,9 @@ jobs:
             done
           done <<< "$FILES"
 
-          # Upload via multipart (handles text and binary; avoids HTTP 415
-          # that save_file_content hits when large files exceed the WAF body limit)
+          # Upload via multipart. ;type=application/octet-stream forces a neutral
+          # MIME type on the file part — without it curl infers text/html for .html
+          # files, which GreenGeeks' WAF blocks with HTTP 415.
           FAILED=0
           while IFS= read -r file; do
             [ -z "$file" ] && continue
@@ -101,7 +102,7 @@ jobs:
               -H "Authorization: cpanel $CPANEL_USER:$TOKEN" \
               -F "dir=$REMOTE_DIR" \
               -F "overwrite=1" \
-              -F "file-1=@$file")
+              -F "file-1=@$file;type=application/octet-stream")
             CPANEL_STATUS=$(jq -r 'if (.status == 1) and ((.data.failed // []) | length == 0) then "1" else "0" end' result.json 2>/dev/null || echo "0")
 
             if [ "$STATUS" != "200" ] || [ "$CPANEL_STATUS" != "1" ]; then
