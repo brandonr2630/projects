@@ -25,12 +25,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Upload changed files to cPanel
+      - name: Configure SSH
         env:
-          TOKEN: ${{ secrets.CPANEL_API_TOKEN }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
-          HOST="${{ secrets.CPANEL_HOST }}"
-          CPANEL_USER="${{ secrets.CPANEL_USER }}"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy changed files via rsync
+        env:
+          SSH_USER: ${{ secrets.CPANEL_USER }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          PORT="${SSH_PORT:-22}"
           DEPLOY_DIR="${{ inputs.deploy_dir }}"
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.sha }}"
@@ -57,64 +68,22 @@ jobs:
           echo "$FILES"
           echo "======================"
 
-          # Create required subdirectories before uploading (ignore errors if already exist)
-          declare -A SEEN_DIRS
-          while IFS= read -r file; do
-            [ -z "$file" ] && continue
-            SUBDIR=$(dirname "$file")
-            [ "$SUBDIR" = "." ] && continue
-            CURRENT=""
-            IFS='/' read -ra PARTS <<< "$SUBDIR"
-            for part in "${PARTS[@]}"; do
-              PARENT_PATH="$DEPLOY_DIR${CURRENT:+/$CURRENT}"
-              CURRENT="${CURRENT:+$CURRENT/}$part"
-              DIR_KEY="$PARENT_PATH/$part"
-              if [ -z "${SEEN_DIRS[$DIR_KEY]+x}" ]; then
-                echo "-> mkdir: $DIR_KEY"
-                curl -s -X POST "$HOST/execute/Fileman/mkdir" \
-                  -H "Authorization: cpanel $CPANEL_USER:$TOKEN" \
-                  --data-urlencode "dir=$PARENT_PATH" \
-                  --data-urlencode "name=$part" > /dev/null 2>&1 || true
-                SEEN_DIRS[$DIR_KEY]=1
-              fi
-            done
-          done <<< "$FILES"
+          SSH_OPTS="-i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=no -p $PORT"
 
-          # Upload via multipart. ;type=application/octet-stream forces a neutral
-          # MIME type on the file part — without it curl infers text/html for .html
-          # files, which GreenGeeks' WAF blocks with HTTP 415.
-          FAILED=0
-          while IFS= read -r file; do
-            [ -z "$file" ] && continue
-            [ ! -f "$file" ] && continue
-
-            SUBDIR=$(dirname "$file")
-            if [ "$SUBDIR" = "." ]; then
-              REMOTE_DIR="$DEPLOY_DIR"
-            else
-              REMOTE_DIR="$DEPLOY_DIR/$SUBDIR"
-            fi
-
-            echo "-> Uploading: $file"
-
-            STATUS=$(curl -s -o result.json -w "%{http_code}" -X POST \
-              "$HOST/execute/Fileman/upload_files" \
-              -H "Authorization: cpanel $CPANEL_USER:$TOKEN" \
-              -F "dir=$REMOTE_DIR" \
-              -F "overwrite=1" \
-              -F "file-1=@$file;type=application/octet-stream")
-            CPANEL_STATUS=$(jq -r 'if (.status == 1) and ((.data.failed // []) | length == 0) then "1" else "0" end' result.json 2>/dev/null || echo "0")
-
-            if [ "$STATUS" != "200" ] || [ "$CPANEL_STATUS" != "1" ]; then
-              echo "  FAILED (HTTP $STATUS, cPanel status $CPANEL_STATUS)"
-              cat result.json
-              FAILED=1
-            else
-              echo "  OK"
-            fi
-          done <<< "$FILES"
-
-          if [ "$FAILED" = "1" ]; then
-            echo "One or more files failed to upload."
-            exit 1
+          # Create any needed remote subdirectories
+          SUBDIRS=$(echo "$FILES" | grep "/" | while IFS= read -r f; do dirname "$f"; done | sort -u)
+          if [ -n "$SUBDIRS" ]; then
+            while IFS= read -r subdir; do
+              [ -z "$subdir" ] && continue
+              echo "-> mkdir: $DEPLOY_DIR/$subdir"
+              ssh $SSH_OPTS "$SSH_USER@$SSH_HOST" "mkdir -p \"$DEPLOY_DIR/$subdir\""
+            done <<< "$SUBDIRS"
           fi
+
+          # Upload all changed files via rsync over SSH
+          echo "-> Uploading..."
+          echo "$FILES" | rsync -avz --files-from=- \
+            -e "ssh $SSH_OPTS" \
+            ./ "$SSH_USER@$SSH_HOST:$DEPLOY_DIR/"
+
+          echo "=== Deploy complete ==="
